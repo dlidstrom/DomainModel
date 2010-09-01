@@ -100,7 +100,9 @@
 
         private static ISessionFactory CreateSessionFactory()
         {
-            return Fluently.Configure()
+            var cfg = new Configuration();
+            cfg.Properties.Add("show_sql", "true");
+            return Fluently.Configure(cfg)
                 .Database(SQLiteConfiguration.Standard.UsingFile(DbFile))
                 .Mappings(m => m.FluentMappings.AddFromAssemblyOf<Store>())
                 .ExposeConfiguration(BuildSchema)
