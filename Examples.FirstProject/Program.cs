@@ -89,11 +89,63 @@
 		{
 			try
 			{
-				new Program().Run();
+				new Program().Run2();
 			}
 			catch (Exception ex)
 			{
 				Console.WriteLine(ex);
+			}
+		}
+
+		void Run2()
+		{
+			var sessionFactory = CreateSessionFactory();
+			using (var session = sessionFactory.OpenSession())
+			using (var tx = session.BeginTransaction())
+			{
+				int currentChild = 0;
+				for (int i = 0; i < 1000; i++)
+				{
+					var parent = new Board
+					{
+						Empty = i,
+						Mover = i,
+						Successors = new HashedSet<Board>(),
+						Parents = new HashedSet<Board>()
+					};
+
+					for (int j = 0; j >= -10; j--)
+					{
+						var child = new Board
+						{
+							Empty = currentChild--,
+							Mover = currentChild--,
+							Successors = new HashedSet<Board>(),
+							Parents = new HashedSet<Board>()
+						};
+						parent.Successors.Add(child);
+						child.Parents.Add(parent);
+					}
+
+					session.Save(parent);
+				}
+				tx.Commit();
+			}
+
+			using (var session = sessionFactory.OpenSession())
+			using (var tx = session.BeginTransaction())
+			{
+				foreach (var pos in session.CreateQuery("from Board").Enumerable<Board>())
+				{
+					Console.WriteLine("Position: {0}", pos);
+					Console.WriteLine("Successors:");
+					foreach (var successor in pos.Successors)
+					{
+						Console.WriteLine("\t{0}, parent = {1}", successor, string.Join(",", successor.Parents));
+					}
+				}
+
+				tx.Commit();
 			}
 		}
 
