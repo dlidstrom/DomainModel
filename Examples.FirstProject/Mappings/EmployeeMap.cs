@@ -3,7 +3,7 @@
     using FluentNHibernate.Mapping;
     using Entities;
 
-    public class EmployeeMap : ClassMap<Employee>
+    class EmployeeMap : ClassMap<Employee>
     {
         public EmployeeMap()
         {

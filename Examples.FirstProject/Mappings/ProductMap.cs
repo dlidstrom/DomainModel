@@ -3,7 +3,7 @@
     using FluentNHibernate.Mapping;
     using Entities;
 
-    public class ProductMap : ClassMap<Product>
+    class ProductMap : ClassMap<Product>
     {
         public ProductMap()
         {

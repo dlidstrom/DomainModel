@@ -6,9 +6,11 @@ using NHibernate.Cfg;
 using DomainModel.Entities;
 using System;
 using FluentNHibernate.Cfg.Db;
+using NUnit.Framework;
 
 namespace DomainModel.Test
 {
+    [TestFixture]
     class Program
     {
         static void Main(string[] args)
@@ -42,7 +44,8 @@ namespace DomainModel.Test
                 .BuildSessionFactory();
         }
 
-        private static void CanGenerateSchema()
+        [Test]
+        public void CanGenerateSchema()
         {
             //var cfg = new Configuration();
             //cfg.Configure();

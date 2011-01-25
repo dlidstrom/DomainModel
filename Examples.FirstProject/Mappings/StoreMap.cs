@@ -3,7 +3,7 @@
     using FluentNHibernate.Mapping;
     using Entities;
 
-    public class StoreMap : ClassMap<Store>
+    class StoreMap : ClassMap<Store>
     {
         public StoreMap()
         {

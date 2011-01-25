@@ -1,4 +1,156 @@
-﻿namespace Examples.FirstProject
+﻿namespace NhTest
+{
+	using System;
+	using System.IO;
+	using FluentNHibernate.Cfg;
+	using FluentNHibernate.Cfg.Db;
+	using FluentNHibernate.Mapping;
+	using Iesi.Collections.Generic;
+	using NHibernate;
+	using NHibernate.Tool.hbm2ddl;
+
+	public class Board
+	{
+		public virtual Guid Id
+		{
+			get;
+			set;
+		}
+
+		public virtual Int64 Empty
+		{
+			get;
+			set;
+		}
+
+		public virtual Int64 Mover
+		{
+			get;
+			set;
+		}
+
+		public virtual ISet<Board> Successors
+		{
+			get;
+			set;
+		}
+
+		public virtual ISet<Board> Parents
+		{
+			get;
+			set;
+		}
+
+		public override string ToString()
+		{
+			return "{" + string.Format("0x{0:X} 0x{1:X}", Empty, Mover) + "}";
+		}
+
+		public class Map : ClassMap<Board>
+		{
+			public Map()
+			{
+				Id(x => x.Id);
+				NaturalId().Property(x => x.Empty).Property(x => x.Mover);
+				HasManyToMany(x => x.Successors)
+					.ParentKeyColumn("ParentId")
+					.ChildKeyColumn("ChildId")
+					.Cascade.All()
+					.AsSet()
+					.Table("Successors");
+				HasManyToMany(x => x.Parents)
+					.ParentKeyColumn("ChildId")
+					.ChildKeyColumn("ParentId")
+					.Cascade.All() // test
+					.AsSet()
+					.Table("Parents");
+			}
+		}
+	}
+
+	class Program
+	{
+		static ISessionFactory CreateSessionFactory()
+		{
+			return Fluently
+				.Configure()
+				.Database(SQLiteConfiguration.Standard.UsingFile("positions.db"))
+				.Mappings(m => m.FluentMappings.AddFromAssemblyOf<Board>())
+				.ExposeConfiguration(c =>
+				{
+					if (File.Exists("positions.db"))
+						File.Delete("positions.db");
+					new SchemaExport(c).Create(true, true);
+				})
+				.BuildSessionFactory();
+		}
+
+		static void Main(string[] args)
+		{
+			try
+			{
+				new Program().Run();
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine(ex);
+			}
+		}
+
+		void Run()
+		{
+			var sessionFactory = CreateSessionFactory();
+			// Arrange
+			Guid id = Guid.Empty;
+			using (var session = sessionFactory.OpenSession())
+			using (var tx = session.BeginTransaction())
+			{
+				id = (Guid)session.Save(new Board
+				{
+					Empty = 8446743970227683327,
+					Mover = 34628173824,
+					Successors = new HashedSet<Board>(),
+					Parents = new HashedSet<Board>()
+				});
+				tx.Commit();
+			}
+
+			// Act
+			using (var session = sessionFactory.OpenSession())
+			using (var tx = session.BeginTransaction())
+			{
+				var successor = new Board
+				{
+					Empty = -103481868289,
+					Mover = 34628173824,
+					Successors = new HashedSet<Board>(),
+					Parents = new HashedSet<Board>()
+				};
+				var pos = session.Get<Board>(id);
+				pos.Successors.Add(successor);
+				successor.Parents.Add(pos);
+				session.Update(pos);
+				tx.Commit();
+			}
+
+			// Assert
+			using (var session = sessionFactory.OpenSession())
+			using (var tx = session.BeginTransaction())
+			{
+				var pos = session.Get<Board>(id);
+				Console.WriteLine("Position: {0}", pos);
+				Console.WriteLine("Successors:");
+				foreach (var successor in pos.Successors)
+				{
+					Console.WriteLine("\t{0}, parent = {1}", successor, string.Join(",", successor.Parents));
+				}
+			}
+		}
+	}
+}
+
+#if false
+namespace Examples.FirstProject
 {
     using Entities;
     using NHibernate;
@@ -104,7 +256,9 @@
             cfg.Properties.Add("show_sql", "true");
             return Fluently.Configure(cfg)
                 .Database(SQLiteConfiguration.Standard.UsingFile(DbFile))
-                .Mappings(m => m.FluentMappings.AddFromAssemblyOf<Store>())
+				//.Database(SQLiteConfiguration.Standard.InMemory())
+				//.Database(SQLiteConfiguration.Standard.UsingFile(":memory:"))
+				.Mappings(m => m.FluentMappings.AddFromAssemblyOf<Store>())
                 .ExposeConfiguration(BuildSchema)
                 .BuildSessionFactory();
         }
@@ -120,3 +274,4 @@
         }
     }
 }
+#endif
