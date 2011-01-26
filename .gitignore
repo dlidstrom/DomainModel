@@ -1,11 +1,5 @@
-DomainModel.Test/bin/
-DomainModel.Test/obj/
-DomainModel/bin/
-DomainModel/obj/
 Examples.FirstProject/bin/
 Examples.FirstProject/obj/
 DomainModel.suo
-DomainModel.Test/DomainModel.Test.csproj.VisualState.xml
-DomainModel.Test/TestResult.xml
 Examples.FirstProject/Examples.FirstProject.csproj.VisualState.xml
 Examples.FirstProject/TestResult.xml
