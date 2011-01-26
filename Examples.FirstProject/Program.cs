@@ -2,6 +2,7 @@
 {
 	using System;
 	using System.IO;
+	using System.Linq;
 	using FluentNHibernate.Cfg;
 	using FluentNHibernate.Cfg.Db;
 	using FluentNHibernate.Mapping;
@@ -11,6 +12,9 @@
 
 	public class Board
 	{
+		private readonly ISet<Board> successors = new HashedSet<Board>();
+		private readonly ISet<Board> parents = new HashedSet<Board>();
+
 		public virtual Guid Id
 		{
 			get;
@@ -29,16 +33,24 @@
 			set;
 		}
 
-		public virtual ISet<Board> Successors
+		public virtual System.Collections.Generic.IEnumerable<Board> Successors
 		{
-			get;
-			set;
+			get { return successors; }
 		}
 
-		public virtual ISet<Board> Parents
+		public virtual void AddSuccessor(Board successor)
 		{
-			get;
-			set;
+			successors.Add(successor);
+		}
+
+		public virtual System.Collections.Generic.IEnumerable<Board> Parents
+		{
+			get { return parents; }
+		}
+
+		public virtual void AddParent(Board parent)
+		{
+			parents.Add(parent);
 		}
 
 		public override string ToString()
@@ -53,12 +65,14 @@
 				Id(x => x.Id);
 				NaturalId().Property(x => x.Empty).Property(x => x.Mover);
 				HasManyToMany(x => x.Successors)
+					.Access.ReadOnlyPropertyThroughLowerCaseField()
 					.ParentKeyColumn("ParentId")
 					.ChildKeyColumn("ChildId")
 					.Cascade.All()
 					.AsSet()
 					.Table("Successors");
 				HasManyToMany(x => x.Parents)
+					.Access.ReadOnlyPropertyThroughLowerCaseField()
 					.ParentKeyColumn("ChildId")
 					.ChildKeyColumn("ParentId")
 					.Cascade.All() // test
@@ -106,36 +120,38 @@
 				int currentChild = 0;
 				for (int i = 0; i < 1000; i++)
 				{
-					var parent = new Board
+					if ((i % 10) == 0)
 					{
-						Empty = i,
-						Mover = i,
-						Successors = new HashedSet<Board>(),
-						Parents = new HashedSet<Board>()
-					};
+						Console.Write(".");
+					}
+
+					var parent = new Board { Empty = i, Mover = i };
 
 					for (int j = 0; j >= -10; j--)
 					{
-						var child = new Board
-						{
-							Empty = currentChild--,
-							Mover = currentChild--,
-							Successors = new HashedSet<Board>(),
-							Parents = new HashedSet<Board>()
-						};
-						parent.Successors.Add(child);
-						child.Parents.Add(parent);
+						var child = new Board { Empty = currentChild--, Mover = currentChild-- };
+#if false
+						// fetch child from store, if it exists
+						child = session.CreateQuery("from Board b where b.Empty = :empty and b.Mover = :mover")
+							.SetInt64("empty", child.Empty)
+							.SetInt64("mover", child.Mover)
+							.UniqueResult<Board>() ?? child;
+#endif
+						parent.AddSuccessor(child);
+						child.AddParent(parent);
 					}
 
 					session.Save(parent);
 				}
+
+				Console.WriteLine();
 				tx.Commit();
 			}
 
 			using (var session = sessionFactory.OpenSession())
 			using (var tx = session.BeginTransaction())
 			{
-				foreach (var pos in session.CreateQuery("from Board").Enumerable<Board>())
+				foreach (var pos in session.CreateQuery("from Board").Enumerable<Board>().Take(10))
 				{
 					Console.WriteLine("Position: {0}", pos);
 					Console.WriteLine("Successors:");
@@ -146,56 +162,6 @@
 				}
 
 				tx.Commit();
-			}
-		}
-
-		void Run()
-		{
-			var sessionFactory = CreateSessionFactory();
-			// Arrange
-			Guid id = Guid.Empty;
-			using (var session = sessionFactory.OpenSession())
-			using (var tx = session.BeginTransaction())
-			{
-				id = (Guid)session.Save(new Board
-				{
-					Empty = 8446743970227683327,
-					Mover = 34628173824,
-					Successors = new HashedSet<Board>(),
-					Parents = new HashedSet<Board>()
-				});
-				tx.Commit();
-			}
-
-			// Act
-			using (var session = sessionFactory.OpenSession())
-			using (var tx = session.BeginTransaction())
-			{
-				var successor = new Board
-				{
-					Empty = -103481868289,
-					Mover = 34628173824,
-					Successors = new HashedSet<Board>(),
-					Parents = new HashedSet<Board>()
-				};
-				var pos = session.Get<Board>(id);
-				pos.Successors.Add(successor);
-				successor.Parents.Add(pos);
-				session.Update(pos);
-				tx.Commit();
-			}
-
-			// Assert
-			using (var session = sessionFactory.OpenSession())
-			using (var tx = session.BeginTransaction())
-			{
-				var pos = session.Get<Board>(id);
-				Console.WriteLine("Position: {0}", pos);
-				Console.WriteLine("Successors:");
-				foreach (var successor in pos.Successors)
-				{
-					Console.WriteLine("\t{0}, parent = {1}", successor, string.Join(",", successor.Parents));
-				}
 			}
 		}
 	}
