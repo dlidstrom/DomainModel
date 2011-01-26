@@ -58,6 +58,26 @@
 			return "{" + string.Format("0x{0:X} 0x{1:X}", Empty, Mover) + "}";
 		}
 
+		public override int GetHashCode()
+		{
+			int seed = (int)(Empty >> 32);
+			seed ^= (int)Empty + (seed << 6) + (seed >> 2);
+			seed ^= (int)(Mover >> 32) + (seed << 6) + (seed >> 2);
+			seed ^= (int)Mover + (seed << 6) + (seed >> 2);
+			return seed;
+		}
+
+		public override bool Equals(object obj)
+		{
+			var board = obj as Board;
+			if (board == null)
+			{
+				return false;
+			}
+
+			return board.Empty == Empty && board.Mover == Mover;
+		}
+
 		public class Map : ClassMap<Board>
 		{
 			public Map()
