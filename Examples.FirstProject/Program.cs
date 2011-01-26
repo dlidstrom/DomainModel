@@ -137,8 +137,11 @@
 			using (var session = sessionFactory.OpenSession())
 			using (var tx = session.BeginTransaction())
 			{
+				// only flush session when we commit
+				// this will improve performance
+				session.FlushMode = FlushMode.Commit;
 				int currentChild = 0;
-				for (int i = 0; i < 1000; i++)
+				for (int i = 0; i < 10000; i++)
 				{
 					if ((i % 10) == 0)
 					{
@@ -150,7 +153,7 @@
 					for (int j = 0; j >= -10; j--)
 					{
 						var child = new Board { Empty = currentChild--, Mover = currentChild-- };
-#if false
+#if true
 						// fetch child from store, if it exists
 						child = session.CreateQuery("from Board b where b.Empty = :empty and b.Mover = :mover")
 							.SetInt64("empty", child.Empty)
