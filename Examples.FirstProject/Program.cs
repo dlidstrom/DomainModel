@@ -115,6 +115,7 @@
 					if (File.Exists("positions.db"))
 						File.Delete("positions.db");
 					new SchemaExport(c).Create(true, true);
+					c.Properties.Add("generate_statistics", "true");
 				})
 				.BuildSessionFactory();
 		}
@@ -137,11 +138,13 @@
 			using (var session = sessionFactory.OpenSession())
 			using (var tx = session.BeginTransaction())
 			{
+				var set = new C5.HashSet<Board>();
+
 				// only flush session when we commit
 				// this will improve performance
 				session.FlushMode = FlushMode.Commit;
 				int currentChild = 0;
-				for (int i = 0; i < 10000; i++)
+				for (int i = 0; i < 100; i++)
 				{
 					if ((i % 10) == 0)
 					{
@@ -149,17 +152,18 @@
 					}
 
 					var parent = new Board { Empty = i, Mover = i };
+					set.FindOrAdd(ref parent);
 
+					currentChild = 0;
 					for (int j = 0; j >= -10; j--)
 					{
 						var child = new Board { Empty = currentChild--, Mover = currentChild-- };
-#if true
+						set.FindOrAdd(ref child);
 						// fetch child from store, if it exists
 						child = session.CreateQuery("from Board b where b.Empty = :empty and b.Mover = :mover")
 							.SetInt64("empty", child.Empty)
 							.SetInt64("mover", child.Mover)
 							.UniqueResult<Board>() ?? child;
-#endif
 						parent.AddSuccessor(child);
 						child.AddParent(parent);
 					}
@@ -169,7 +173,65 @@
 
 				Console.WriteLine();
 				tx.Commit();
+
+				Console.WriteLine("CloseStatementCount.............: {0}", sessionFactory.Statistics.CloseStatementCount);
+				Console.WriteLine("CollectionFetchCount............: {0}", sessionFactory.Statistics.CollectionFetchCount);
+				Console.WriteLine("CollectionLoadCount.............: {0}", sessionFactory.Statistics.CollectionLoadCount);
+				Console.WriteLine("CollectionRecreateCount.........: {0}", sessionFactory.Statistics.CollectionRecreateCount);
+				Console.WriteLine("CollectionRemoveCount...........: {0}", sessionFactory.Statistics.CollectionRemoveCount);
+				Console.WriteLine("CollectionRoleNames:");
+				foreach (var r in sessionFactory.Statistics.CollectionRoleNames)
+				{
+					Console.WriteLine("Role name.......................: {0} ", r);
+				}
+				Console.WriteLine("CollectionUpdateCount...........: {0}", sessionFactory.Statistics.CollectionUpdateCount);
+				Console.WriteLine("ConnectCount....................: {0}", sessionFactory.Statistics.ConnectCount);
+				Console.WriteLine("EntityDeleteCount...............: {0}", sessionFactory.Statistics.EntityDeleteCount);
+				Console.WriteLine("EntityFetchCount................: {0}", sessionFactory.Statistics.EntityFetchCount);
+				Console.WriteLine("EntityInsertCount...............: {0}", sessionFactory.Statistics.EntityInsertCount);
+				Console.WriteLine("EntityLoadCount.................: {0}", sessionFactory.Statistics.EntityLoadCount);
+				Console.WriteLine("EntityNames:");
+				foreach (var r in sessionFactory.Statistics.EntityNames)
+				{
+					Console.WriteLine("Entity name:....................: {0} ", r);
+				}
+				Console.WriteLine("EntityUpdateCount...............: {0}", sessionFactory.Statistics.EntityUpdateCount);
+				Console.WriteLine("FlushCount......................: {0}", sessionFactory.Statistics.FlushCount);
+				Console.WriteLine("OperationThreshold..............: {0} ms", sessionFactory.Statistics.OperationThreshold.Milliseconds);
+				Console.WriteLine("OptimisticFailureCount..........: {0}", sessionFactory.Statistics.OptimisticFailureCount);
+				Console.WriteLine("PrepareStatementCount...........: {0}", sessionFactory.Statistics.PrepareStatementCount);
+				Console.WriteLine("Queries:");
+				foreach (var r in sessionFactory.Statistics.Queries)
+				{
+					Console.WriteLine("Query...........................: \"{0}\" ", r);
+				}
+				Console.WriteLine("QueryCacheHitCount..............: {0}", sessionFactory.Statistics.QueryCacheHitCount);
+				Console.WriteLine("QueryCacheMissCount.............: {0}", sessionFactory.Statistics.QueryCacheMissCount);
+				Console.WriteLine("QueryCachePutCount..............: {0}", sessionFactory.Statistics.QueryCachePutCount);
+				Console.WriteLine("QueryExecutionCount.............: {0}", sessionFactory.Statistics.QueryExecutionCount);
+				Console.WriteLine("QueryExecutionMaxTime...........: {0} ms", sessionFactory.Statistics.QueryExecutionMaxTime.Milliseconds);
+				Console.WriteLine("QueryExecutionMaxTimeQueryString: \"{0}\"", sessionFactory.Statistics.QueryExecutionMaxTimeQueryString);
+				Console.WriteLine("SecondLevelCacheHitCount........: {0}", sessionFactory.Statistics.SecondLevelCacheHitCount);
+				Console.WriteLine("SecondLevelCacheMissCount.......: {0}", sessionFactory.Statistics.SecondLevelCacheMissCount);
+				Console.WriteLine("SecondLevelCachePutCount:.......: {0} ", sessionFactory.Statistics.SecondLevelCachePutCount);
+				Console.WriteLine("SecondLevelCacheRegionNames:");
+				foreach (var r in sessionFactory.Statistics.SecondLevelCacheRegionNames)
+				{
+					Console.WriteLine("Cache Region Name: {0} ", r);
+				}
+				Console.WriteLine("SessionCloseCount...............: {0}", sessionFactory.Statistics.SessionCloseCount);
+				Console.WriteLine("SessionOpenCount................: {0}", sessionFactory.Statistics.SessionOpenCount);
+				Console.WriteLine("StartTime.......................: {0}", sessionFactory.Statistics.StartTime.ToString("s"));
+				Console.WriteLine("SuccessfulTransactionCount......: {0}", sessionFactory.Statistics.SuccessfulTransactionCount);
+				Console.WriteLine("TransactionCount................: {0}", sessionFactory.Statistics.TransactionCount);
+
+				//Console.WriteLine(session.Statistics.CollectionCount);
+				//Console.WriteLine(session.Statistics.CollectionKeys);
+				//Console.WriteLine(session.Statistics.EntityCount);
+				//Console.WriteLine(session.Statistics.EntityKeys);
 			}
+
+			return;
 
 			using (var session = sessionFactory.OpenSession())
 			using (var tx = session.BeginTransaction())
